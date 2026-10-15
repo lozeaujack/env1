@@ -1,10 +1,8 @@
 import { defineAgent } from "eve";
-import { anthropic } from "eve/models/anthropic";
 
 export default defineAgent({
-  // Haiku 5.5 is called directly through Anthropic (needs ANTHROPIC_API_KEY);
-  // it is not in the AI Gateway catalog.
-  model: anthropic("claude-haiku-5-5"),
+  // Routed through Vercel AI Gateway (needs `eve link` for Gateway credentials, no provider key).
+  model: "anthropic/claude-sonnet-5",
   reasoning: "medium",
   // Only the tools in agent/tools/ are exposed. No shell or file access.
   defaultTools: false,
