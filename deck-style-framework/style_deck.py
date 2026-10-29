@@ -53,6 +53,66 @@ def style_req(oid, font, color, size=None, bold=None, cell=None):
 def C_note(is_note, fn, t):
     return fn["color"] if is_note else t["color"]
 
+def decor(deck, st):
+    """Visual layer: edge stripe, footer bar with page numbers, banded table headers, white cards.
+    Decor objects have ids starting 'deco_'; they are deleted and rebuilt on every run, so re-running is safe."""
+    D = st["decor"]; C = st["colors"]; W, H = D["page_w"], D["page_h"]
+    layouts = {l["objectId"]: l.get("layoutProperties", {}).get("name", "") for l in deck.get("layouts", [])}
+    slides = deck.get("slides", []); N = len(slides); out = []
+    def box(oid, sid, x, y, w, h, fill, kind="RECTANGLE"):
+        return [{"createShape": {"objectId": oid, "shapeType": kind, "elementProperties": {"pageObjectId": sid,
+                   "size": {"width": {"magnitude": w, "unit": "EMU"}, "height": {"magnitude": h, "unit": "EMU"}},
+                   "transform": {"scaleX": 1, "scaleY": 1, "translateX": x, "translateY": y, "unit": "EMU"}}}},
+                {"updateShapeProperties": {"objectId": oid, "fields": "shapeBackgroundFill,outline",
+                   "shapeProperties": {"shapeBackgroundFill": {"solidFill": {"color": {"rgbColor": rgb(fill)}}}, "outline": {"propertyState": "NOT_RENDERED"}}}}]
+    for idx, sl in enumerate(slides):
+        sid = sl["objectId"]
+        if sid in st.get("skip_slide_ids", []): continue
+        for el in sl.get("pageElements", []):          # clear old decor
+            if el["objectId"].startswith("deco_"): out.append({"deleteObject": {"objectId": el["objectId"]}})
+        layout = layouts.get(sl.get("slideProperties", {}).get("layoutObjectId", ""), "")
+        if layout in st.get("dark_layouts", []): continue
+        if D.get("edge_stripe"): out += box(f"deco_{idx}_edge", sid, 0, 0, 110000, H, C["green"])
+        if D.get("footer"):
+            fh = 300000; out += box(f"deco_{idx}_foot", sid, 0, H - fh, W, fh, C["navy"])
+            out += box(f"deco_{idx}_ftxt", sid, 330000, H - fh, W - 660000, fh, C["navy"])
+            label = f"{D['team']}  ·  {idx+1} / {N}"
+            out += [{"insertText": {"objectId": f"deco_{idx}_ftxt", "text": label}},
+                    {"updateTextStyle": {"objectId": f"deco_{idx}_ftxt", "textRange": {"type": "ALL"}, "fields": "fontFamily,fontSize,bold,foregroundColor",
+                       "style": {"fontFamily": st["font"], "fontSize": {"magnitude": 10, "unit": "PT"}, "bold": True, "foregroundColor": color_obj(C["white"])}}},
+                    {"updateParagraphStyle": {"objectId": f"deco_{idx}_ftxt", "textRange": {"type": "ALL"}, "fields": "alignment", "style": {"alignment": "END"}}},
+                    {"updateShapeProperties": {"objectId": f"deco_{idx}_ftxt", "fields": "contentAlignment", "shapeProperties": {"contentAlignment": "MIDDLE"}}}]
+        for el in sl.get("pageElements", []):
+            oid = el["objectId"]
+            if oid.startswith("deco_"): continue
+            if D.get("table_style") and "table" in el:
+                rows = el["table"].get("tableRows", []); ncol = max((len(r.get("tableCells", [])) for r in rows), default=0)
+                if not rows or not ncol: continue
+                hdr = {"tableRange": {"location": {"rowIndex": 0, "columnIndex": 0}, "rowSpan": 1, "columnSpan": ncol}}
+                out.append({"updateTableCellProperties": {"objectId": oid, "fields": "tableCellBackgroundFill", **hdr,
+                    "tableCellProperties": {"tableCellBackgroundFill": {"solidFill": {"color": {"rgbColor": rgb(C["navy"])}}}}}})
+                out.append({"updateTextStyle": {"objectId": oid, "textRange": {"type": "ALL"}, "fields": "foregroundColor,bold",
+                    "cellLocation": None, "style": {}}}) if False else None
+                for c in range(ncol):
+                    out.append({"updateTextStyle": {"objectId": oid, "cellLocation": {"rowIndex": 0, "columnIndex": c}, "textRange": {"type": "ALL"},
+                        "fields": "foregroundColor,bold", "style": {"bold": True, "foregroundColor": color_obj(C["white"])}}})
+                for r in range(1, len(rows)):
+                    band = C["white"] if r % 2 else C["paper"]
+                    out.append({"updateTableCellProperties": {"objectId": oid, "fields": "tableCellBackgroundFill",
+                        "tableRange": {"location": {"rowIndex": r, "columnIndex": 0}, "rowSpan": 1, "columnSpan": ncol},
+                        "tableCellProperties": {"tableCellBackgroundFill": {"solidFill": {"color": {"rgbColor": rgb(band)}}}}}})
+            elif D.get("cards") and "shape" in el and not el["shape"].get("placeholder"):
+                sh = el["shape"]
+                if sh.get("shapeType") not in ("TEXT_BOX", "RECTANGLE", "ROUND_RECTANGLE"): continue
+                t = text_of(sh)
+                if len(t.strip()) < D.get("card_min_chars", 25): continue
+                fn = st["text"]["footnote"]
+                if any(k in oid.lower() for k in fn.get("id_contains", [])) or any(re.search(p, t, re.I) for p in fn.get("patterns", [])): continue
+                out.append({"updateShapeProperties": {"objectId": oid, "fields": "shapeBackgroundFill,outline",
+                    "shapeProperties": {"shapeBackgroundFill": {"solidFill": {"color": {"rgbColor": rgb(C["white"])}}},
+                        "outline": {"outlineFill": {"solidFill": {"color": {"rgbColor": rgb(C["navy"])}}}, "weight": {"magnitude": 1.5, "unit": "PT"}}}}})
+    return out
+
 def build(deck, st, revision):
     C = st["colors"]; font = st["font"]; T = st["text"]
     reqs, log = [], []
@@ -103,6 +163,7 @@ def build(deck, st, revision):
                         col = txt_col or C[T["table"]["color"]]
                         reqs.append(style_req(oid, font, col, bold=(True if (r == 0 and T["table"]["header_bold"]) else None), cell=loc))
                 log.append(f"slide {idx+1}: {oid} -> table")
+    reqs = decor(deck, st) + reqs if st.get("decor", {}).get("enabled") else reqs
     return {"requests": reqs, "writeControl": {"requiredRevisionId": revision}}, log
 
 def main():

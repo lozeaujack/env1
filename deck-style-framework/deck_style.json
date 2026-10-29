@@ -60,5 +60,16 @@
     "min_size": "Case rule: no text under 10 pt. Anything smaller is raised to this.",
     "placeholders": "Titles always take the title style. Body placeholders keep your own size if you set one (floored at min_size), otherwise take the body style.",
     "other_text": "Text boxes keep their size and bold; only font family and colour are unified."
+  },
+  "decor": {
+    "enabled": true,
+    "team": "DEEP CUT",
+    "edge_stripe": true,
+    "footer": true,
+    "table_style": true,
+    "cards": false,
+    "card_min_chars": 25,
+    "page_w": 9144000,
+    "page_h": 5143500
   }
 }
