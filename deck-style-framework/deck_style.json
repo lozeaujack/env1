@@ -1,0 +1,64 @@
+{
+  "_comment": "House style for the Deep Cut deck. Edit values here, then re-run style_deck.py. Colours are hex.",
+  "font": "Nunito",
+  "colors": {
+    "navy": "#131F24",
+    "green": "#58CC02",
+    "amber": "#FFB800",
+    "paper": "#F6F7F2",
+    "white": "#FFFFFF",
+    "muted": "#4A555A"
+  },
+  "backgrounds": {
+    "content": "paper",
+    "dark": "navy"
+  },
+  "text": {
+    "title": {
+      "size": 28,
+      "bold": true,
+      "color": "navy"
+    },
+    "body": {
+      "size": 18,
+      "bold": false,
+      "color": "navy"
+    },
+    "body_long": {
+      "size": 16,
+      "bold": false,
+      "color": "navy",
+      "_when_chars_over": 300
+    },
+    "footnote": {
+      "color": "muted",
+      "patterns": [
+        "^\\s*\\[\\d+\\]",
+        "^\\s*sources?\\b"
+      ],
+      "id_contains": [
+        "source",
+        "footnote"
+      ]
+    },
+    "table": {
+      "color": "navy",
+      "header_bold": true
+    }
+  },
+  "dark_text_color": "white",
+  "dark_layouts": [
+    "SECTION_HEADER",
+    "TITLE"
+  ],
+  "skip_slide_ids": [
+    "intro_slide"
+  ],
+  "keep_sizes_for_other_text": true,
+  "min_size": 10,
+  "_notes": {
+    "min_size": "Case rule: no text under 10 pt. Anything smaller is raised to this.",
+    "placeholders": "Titles always take the title style. Body placeholders keep your own size if you set one (floored at min_size), otherwise take the body style.",
+    "other_text": "Text boxes keep their size and bold; only font family and colour are unified."
+  }
+}
